@@ -1,0 +1,2 @@
+DEVELOPER NOTES
+Currently writes rounded repeat length to file, not actual repeat length, this is due to downstream analysis
