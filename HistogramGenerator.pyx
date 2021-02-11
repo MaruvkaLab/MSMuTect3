@@ -175,10 +175,10 @@ def main(input_bam: str, output_file: str, csv_loci: str, flanking: int, removed
         chrom = locus[0]
         locus_start = int(locus[3])
         locus_end = int(locus[4])
-        # get new iterator for new chromosome or if locus is 8,000 away, since a fetch will go through 8,000 irrelevant alignments on average
-        if chrom != current_chrom or abs(prev_start - locus_start) > 8000:
+        # get new iterator for new chromosome or if locus is 6,000 away, since a fetch will go through 8,000 irrelevant alignments on average, but the fetch iterates through reads a bit faster than this does
+        if chrom != current_chrom or abs(prev_start - locus_start) > 6000:
             try:
-                reads_iterator = bam_file.fetch("{0}{1}".format(prefix, chrom), start=locus_end+flanking-1)  # hop to part of chromosome with relevant reads
+                reads_iterator = bam_file.fetch("{0}{1}".format(prefix, chrom), start=locus_start)  # hop to part of chromosome with relevant reads
                 first_read = get_next_mapped_read(reads_iterator)
             except ValueError:
                 print("NO READS FOR CHROMOSOME \'{0}\'  IN BAM".format(chrom))
