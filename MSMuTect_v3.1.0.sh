@@ -10,13 +10,13 @@ msmutect=/storage/bfe_maruvka/avrahamk/MSMuTect_v3.1
 
 #Calling Tumor alleles
 python3 $msmutect/main.py -I $2 -l $4 -O $1.Tumor.hist
-awk 'BEGIN{FS="\t"}{print $.Tumor.hist}' $1.Tumor.hist | awk '{split($1.Tumor.hist,a,":");if(a[4]!="yosi"){gsub("_",", ");a[5]=int(a[5]);$1.Tumor.hist=a[1]":"a[2]":"a[3]":"a[4]":"a[5]",";if(NF>1&&a[5]<30){print $0}}}'  | awk 'BEGIN{FS=","}{for(i=2;i<NF+1;i=i+1){$i=int($i)}; for(i=1;i<NF;i=i+1){printf $i", "};printf $NF"\n"}'  > $1.Tumor.hist.mot
+python $msmutect/reformat_histogram.py $1.Tumor.hist
 python3 $msmutect/calculate_alleles.py  $1.Tumor.hist.mot $msmutect/data/probability_table.csv > $1.Tumor.hist.mot.all
 
 
 #Calling Normal alleles
 python3 $msmutect/main.py -I $3 -l $4 -O $1.Normal.hist
-awk 'BEGIN{FS="\t"}{print $.Normal.hist}' $1.Normal.hist | awk '{split($1.Normal.hist,a,":");if(a[4]!="yosi"){gsub("_",", ");a[5]=int(a[5]);$1.Normal.hist=a[1]":"a[2]":"a[3]":"a[4]":"a[5]",";if(NF>1&&a[5]<30){print $0}}}'  | awk 'BEGIN{FS=","}{for(i=2;i<NF+1;i=i+1){$i=int($i)}; for(i=1;i<NF;i=i+1){printf $i", "};printf $NF"\n"}'  > $1.Normal.hist.mot
+python $msmutect/reformat_histogram.py $1.Normal.hist
 python3 $msmutect/calculate_alleles.py  $1.Normal.hist.mot $msmutect/data/probability_table.csv > $1.Normal.hist.mot.all
 
 #Taking the shared loci
