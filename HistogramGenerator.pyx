@@ -83,7 +83,7 @@ def format_result(result: Result) -> str:
     results_string = ", ".join(
         ["{0}_{1}".format(MS_repeats, read_count) for MS_repeats, read_count  in result.MS_occurence_count.items()])
     return "{0}:{1}:{2}:{3}:{4}, {5}".format(strip_chromosome(result.locus.chrom), result.locus.start, result.locus.end,
-                                                            result.locus.pattern, result.locus.num_repeats,
+                                                            result.locus.pattern, round(result.locus.num_repeats),
                                                             results_string)
 
 
