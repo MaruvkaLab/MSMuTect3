@@ -11,13 +11,13 @@ msmutect=/storage/bfe_maruvka/avrahamk/MSMuTect_v3.1
 #Calling Tumor alleles
 python3 $msmutect/main.py -I $2 -l $4 -O $1.Tumor.hist
 python $msmutect/reformat_histogram.py $1.Tumor.hist
-python3 $msmutect/calculate_alleles.py  $1.Tumor.hist.mot $msmutect/data/probability_table.csv > $1.Tumor.hist.mot.all
+python3 $msmutect/calculate_alleles.py  $1.Tumor.hist.mot $msmutect/data/probability_table.csv 
 
 
 #Calling Normal alleles
 python3 $msmutect/main.py -I $3 -l $4 -O $1.Normal.hist
 python $msmutect/reformat_histogram.py $1.Normal.hist
-python3 $msmutect/calculate_alleles.py  $1.Normal.hist.mot $msmutect/data/probability_table.csv > $1.Normal.hist.mot.all
+python3 $msmutect/calculate_alleles.py  $1.Normal.hist.mot $msmutect/data/probability_table.csv 
 
 #Taking the shared loci
 sh $msmutect/shell/Shared_loci_v3.sh $1.Tumor.hist.mot.all  $1.Normal.hist.mot.all A
