@@ -2,7 +2,7 @@ import sys
 import scipy.stats as stats
 import numpy as np
 from collections import namedtuple
-
+from icecream import ic
 
 AlleleSet = namedtuple("AlleleSet", "log_likelihood repeat_lengths frequencies")
 
@@ -14,7 +14,7 @@ def allele_maximum_likelihood(histogram: np.array, num_allele: int, probability_
 	repeat_lengths = histogram[0,:]
 	num_reads = histogram[1,:]
 
-	supported_repeat_lengths = repeat_lengths[np.where(num_reads>5)[0]]
+	supported_repeat_lengths = repeat_lengths[np.where(num_reads>=5)[0]]
 	max_log_likelihood=-1e9
 
 	for _ in range(10):
@@ -69,7 +69,7 @@ def allele_maximum_likelihood(histogram: np.array, num_allele: int, probability_
 def find_alleles(histogram, probability_table) -> AlleleSet:
 	repeat_lengths = histogram[0,:]
 	num_reads = histogram[1,:]
-	supported_repeat_lengths = repeat_lengths[np.where(num_reads>5)[0]]
+	supported_repeat_lengths = repeat_lengths[np.where(num_reads>=5)[0]]
 
 	first_allele_set = allele_maximum_likelihood(histogram, 1, probability_table)
 	second_allele_set = allele_maximum_likelihood(histogram, 2, probability_table)
@@ -116,24 +116,33 @@ def filter_repeats(histogram, ms_length):
 	return histogram[:, filtered[0]]
 
 
-def write_results(filename, alleles: AlleleSet, split_histogram):
-	with open(filename + ".all", "w") as results_file:
-		for orig_substr in split_histogram: # writes original histogram
-			results_file.write("{0} ".format(orig_substr))
-		results_file.write("-999 ")
-		results_file.write("{0} ".format(round(alleles.log_likelihood, 6)))
-		results_file.write("-999 ")
-		for repeat_length in alleles.repeat_lengths:
-			results_file.write("{0} ".format(repeat_length))
-		results_file.write("-999 ")
-		for likelihood in alleles.frequencies:
-			results_file.write("{0} ".format(round(likelihood, 6)))
-		results_file.write("\n")
-		results_file.close()
+def format_results(alleles: AlleleSet, split_histogram):
+	formatted_result = ""
+	for orig_substr in split_histogram: # writes original histogram
+		formatted_result+="{0} ".format(orig_substr)
+	formatted_result+="-999 "
+	formatted_result+="{0} ".format(round(alleles.log_likelihood, 6))
+	formatted_result+="-999 "
+	for repeat_length in alleles.repeat_lengths:
+		formatted_result+="{0} ".format(repeat_length)
+	formatted_result+="-999 "
+	for likelihood in alleles.frequencies:
+		formatted_result+="{0} ".format(round(likelihood, 6))
+	formatted_result+="\n"
+	return formatted_result
+
+def write_results(formatted_results, filename):
+	with open(filename, 'w') as results_file:
+		for result in formatted_results:
+
+			results_file.write(result)
+
 
 
 def main(cmd_arguments):
+	formatted_results = []
 	probability_table = np.loadtxt(cmd_arguments[2], delimiter=',') # probability file
+	print(probability_table.shape)
 	histogram_file = open(cmd_arguments[1], "r") # histogram file
 	for histogram_str in histogram_file:
 		split_histogram=histogram_str.strip().split(", ")
@@ -144,8 +153,7 @@ def main(cmd_arguments):
 		histogram = filter_repeats(histogram, ms_length)
 		repeat_lengths = histogram[0,:]
 		num_reads=histogram[1,:]
-		supported_repeat_lengths = repeat_lengths[np.where(num_reads > 5)[0]]  # filters low coverage MSI loci
-		
+		supported_repeat_lengths = repeat_lengths[np.where(num_reads >= 5)[0]]  # filters low coverage MSI loci
 		if supported_repeat_lengths.size==0:
 			continue
 		
@@ -155,7 +163,8 @@ def main(cmd_arguments):
 		elif supported_repeat_lengths.size>1:
 			allele_set = find_alleles(histogram, probability_table)
 
-		write_results(cmd_arguments[1], allele_set, split_histogram)
+		formatted_results.append(format_results(allele_set, split_histogram))
+	write_results(formatted_results, cmd_arguments[1]+".all")
 
 
 if __name__ == '__main__':

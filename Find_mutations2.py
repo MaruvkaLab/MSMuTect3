@@ -77,8 +77,8 @@ def Check_Mutation(Norm_reads,Norm_allele,Norm_frac,Tum_reads,Tum_allele,Tum_fra
 
 def main(cmd_args):
 	probability_table = np.loadtxt(cmd_args[3], delimiter=',')
-	normal_file = open(cmd_args[1], "r")# Normal file
-	tumor_file = open(cmd_args[2], "r")# Tumor file
+	tumor_file = open(cmd_args[1], "r")
+	normal_file = open(cmd_args[2], "r")
 	LOR_ratio = float(cmd_args[4])
 	p_equal = float(cmd_args[5])
 	KS_thresh = float(cmd_args[6])
