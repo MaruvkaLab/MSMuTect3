@@ -145,8 +145,11 @@ def main(cmd_arguments):
 		repeat_lengths = histogram[0,:]
 		num_reads=histogram[1,:]
 		supported_repeat_lengths = repeat_lengths[np.where(num_reads > 5)[0]]  # filters low coverage MSI loci
-
-		if supported_repeat_lengths.size==1:
+		
+		if supported_repeat_lengths.size==0:
+			continue
+		
+		elif supported_repeat_lengths.size==1:
 			allele_set = AlleleSet(log_likelihood=0, repeat_lengths=[supported_repeat_lengths], frequencies=[1])
 
 		elif supported_repeat_lengths.size>1:
