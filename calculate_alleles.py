@@ -2,7 +2,6 @@ import sys
 import scipy.stats as stats
 import numpy as np
 from collections import namedtuple
-from icecream import ic
 
 AlleleSet = namedtuple("AlleleSet", "log_likelihood repeat_lengths frequencies")
 
@@ -142,7 +141,6 @@ def write_results(formatted_results, filename):
 def main(cmd_arguments):
 	formatted_results = []
 	probability_table = np.loadtxt(cmd_arguments[2], delimiter=',') # probability file
-	print(probability_table.shape)
 	histogram_file = open(cmd_arguments[1], "r") # histogram file
 	for histogram_str in histogram_file:
 		split_histogram=histogram_str.strip().split(", ")
