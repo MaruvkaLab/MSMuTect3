@@ -1,4 +1,5 @@
 #!/bin/bash
+PATH=/Local/bfe_maruvka/anaconda3/bin/:$PATH
 msmutect=/storage/bfe_maruvka/avrahamk/MSMuTect_v3.1
 
 ######
