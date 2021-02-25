@@ -1,4 +1,4 @@
-import sys
+import sys, re
 
 
 def get_bounded_segment(segments, start_index):
@@ -55,12 +55,14 @@ def unpack(current_line):
 def main(cleaned_mut_path: str, output_path):
     header = "Locus	Decision\tNormal_histogram\tNormal_alleles\tNormal_frequencies\tTumor_histogram\tTumor_alleles\tTumor_frequencies"
     output_lines = [header]
+    space_reg = re.compile("\s+")
     with open(cleaned_mut_path, 'r') as mut_file:
         for line in mut_file:
             current_line = []
-            edited_line = line.replace("  ", " ")
-            stripped_line = edited_line.strip()
-            all_segments = stripped_line.split(" ")
+            stripped_line = line.strip()
+            edited_line = re.sub("\s+", ",", stripped_line)
+            all_segments = edited_line.split(",")
+            print(all_segments)
             current_line.append([all_segments[0]])
             current_line.append([all_segments[1]])
             histo_string, current_index = get_bounded_segment(all_segments, 2)
