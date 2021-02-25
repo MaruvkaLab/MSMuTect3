@@ -56,8 +56,12 @@ def get_read_repeat_length(read: AlignedSegment, locus: Locus) -> float:
             if locus.start <= read_position <= locus.end:
                 indel_bases+=cigar_op[1]
         elif cigar_op[0] == CIGAR_OPTIONS.DELETION:
-            if locus.start <= read_position:
-                indel_bases -= max(0, min(read_position + cigar_op[1] - locus.start, cigar_op[1])) # case where deletion extends into locus from flanking, or is in locus
+            if read_position <= locus.end:
+                if read_position < locus.start:
+                    deletion_length = max(cigar_op[1] + read_position - locus.start, 0)
+                else:
+                    deletion_length = cigar_op[1]
+                indel_bases-=min(locus.end-read_position+1, deletion_length)
             read_position+=cigar_op[1]
     return max(locus.num_repeats + indel_bases/len(locus.pattern), 0) # so is never negative
 
