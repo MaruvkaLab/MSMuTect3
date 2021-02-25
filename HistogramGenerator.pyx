@@ -47,7 +47,6 @@ class FLAG_OPTIONS:
 
 
 def get_read_repeat_length(read: AlignedSegment, locus: Locus) -> float:
-    #print("*************\n start: {0}\n end:{1} \n Cigar {2}".format(read.reference_start, read.reference_end, read.cigartuples))
     read_position = read.reference_start+1
     indel_bases = 0 # number of added/deleted bases in MS locus
     for cigar_op in read.cigartuples:
@@ -57,10 +56,12 @@ def get_read_repeat_length(read: AlignedSegment, locus: Locus) -> float:
             if locus.start <= read_position <= locus.end:
                 indel_bases+=cigar_op[1]
         elif cigar_op[0] == CIGAR_OPTIONS.DELETION:
-            if locus.start <= read_position <= locus.end:
-                indel_bases-=min(cigar_op[1], locus.end-read_position) # in case deletion goes past end of MS locus
-            elif read_position < locus.start:
-                indel_bases -= max(0, read_position + cigar_op[1] - locus.start) # case where deletion extends into locus from flanking
+            if read_position <= locus.end:
+                if read_position < locus.start:
+                    deletion_length = max(cigar_op[1] + read_position - locus.start, 0)
+                else:
+                    deletion_length = cigar_op[1]
+                indel_bases-=min(locus.end-read_position+1, deletion_length)
             read_position+=cigar_op[1]
     return max(locus.num_repeats + indel_bases/len(locus.pattern), 0) # so is never negative
 
