@@ -31,7 +31,7 @@ python3 $msmutect/Find_mutations2.py  $1.Tumor.hist.mot.all.tmp.par.reg  $1.Norm
 
 tr '\n' ' ' < $1.mut | awk '{gsub("@","\n");print $0}' > $1.mut.cln
         
-python3 reformat_output.py $1.mut.cln $1.maf_like
+python3 $msmutect/reformat_output.py $1.mut.cln $1.maf_like
 
 
 
