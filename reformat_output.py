@@ -1,4 +1,5 @@
-import sys, re
+import sys, re, icecream
+from icecream import ic
 
 
 def get_bounded_segment(segments, start_index):
@@ -41,46 +42,55 @@ def get_second_freq(segments, start_index):
             current_lists+=1
     return get_list(segments, i)
 
+
+def strip_brackets(intial: str):
+    intermediate = intial.replace("[", "")
+    return intermediate.replace("]", "")
+
+
 def unpack(current_line):
     packed_line = []
     for attribute in current_line:
         attribute_length = len(attribute)
         for i in range(attribute_length):
-            packed_line.append(attribute[i])
+            packed_line.append(strip_brackets(attribute[i]))
             if i != attribute_length - 1:
                 packed_line.append(" ")
         packed_line.append("\t")
     return "".join(packed_line)
 
+
 def main(cleaned_mut_path: str, output_path):
-    header = "Locus	Decision\tNormal_histogram\tNormal_alleles\tNormal_frequencies\tTumor_histogram\tTumor_alleles\tTumor_frequencies"
+    header = "Decision\tLocus\tNormal_histogram\tNormal_alleles\tNormal_frequencies\tTumor_histogram\tTumor_alleles\tTumor_frequencies"
     output_lines = [header]
     with open(cleaned_mut_path, 'r') as mut_file:
-        for line in mut_file:
-            current_line = []
-            stripped_line = line.strip()
-            edited_line = re.sub("\s+", ",", stripped_line)
-            all_segments = edited_line.split(",")
-            current_line.append([all_segments[0]])
-            current_line.append([all_segments[1]])
-            histo_string, current_index = get_bounded_segment(all_segments, 2)
-            current_line.append([histo_string])
-            allelic_string, current_index = get_bounded_segment(all_segments, current_index+3)
-            current_line.append([allelic_string])
+        mut_file_lines = mut_file.readlines()
+    for i in range(len(mut_file_lines)-1):
+        current_line = []
+        stripped_line = mut_file_lines[i].strip()
+        edited_line = re.sub("\s+", ",", stripped_line)
+        all_segments = edited_line.split(",")
+        current_line.append([all_segments[0]])
+        current_line.append([all_segments[1]])
+        histo_string, current_index = get_bounded_segment(all_segments, 2)
+        current_line.append([histo_string])
+        allelic_string, current_index = get_bounded_segment(all_segments, current_index+3)
+        current_line.append([allelic_string])
 
-            probabilities, current_index = get_probabilities(all_segments, current_index+1)
-            current_line.append([probabilities])
+        probabilities, current_index = get_probabilities(all_segments, current_index+1)
+        current_line.append([probabilities])
 
-            second_alleles, current_index = get_second_freq(all_segments, current_index)
-            current_line.append([second_alleles])
+        second_alleles, current_index = get_second_freq(all_segments, current_index)
 
-            second_real_alleles, current_index = get_list(all_segments, current_index+1)
-            current_line.append([second_real_alleles])
+        current_line.append([second_alleles])
 
-            second_probabilities, _ = get_list(all_segments, current_index+1)
-            current_line.append([second_probabilities])
+        second_real_alleles, current_index = get_list(all_segments, current_index+1)
+        current_line.append([second_real_alleles])
 
-            output_lines.append(unpack(current_line))
+        second_probabilities, _ = get_list(all_segments, current_index+1)
+        current_line.append([second_probabilities])
+
+        output_lines.append(unpack(current_line))
     with open(output_path, 'w') as output_file:
         output_file.write("\n".join(output_lines))
 
