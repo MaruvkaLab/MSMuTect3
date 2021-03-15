@@ -25,7 +25,7 @@ sh $msmutect/shell/Shared_loci_v3.sh $1.Tumor.hist.mot.all  $1.Normal.hist.mot.a
 
 
 #Calling mutations
-python3 $msmutect/Find_mutations2.py  $1.Tumor.hist.mot.all.tmp.par.reg  $1.Normal.hist.mot.all.tmp.par.reg $msmutect/data/probability_table.csv 8 0.3 0.031 > $1.mut
+python3 $msmutect/CallMutations.py  $1.Tumor.hist.mot.all.tmp.par.reg  $1.Normal.hist.mot.all.tmp.par.reg $msmutect/data/probability_table.csv 8 0.3 0.031 > $1.mut
 
 #Simple output format 
 
