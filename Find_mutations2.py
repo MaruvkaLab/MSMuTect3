@@ -1,79 +1,128 @@
 import scipy.stats as stats
 import numpy as np
 import sys
+import math
 from scipy.stats import binom
+from collections import namedtuple
+from icecream import ic
+from typing import List
+
+AlleleSet = namedtuple('Allele', ['alleles', 'fractions'])
 
 
-def hist2vec(histogram):
-	vec= histogram[0, 0] * np.ones(histogram[1, 0])
-	for i in range(histogram.shape[1]-1):
-		ve_temp= histogram[0, i + 1] * np.ones(histogram[1, i + 1])
-		vec = np.concatenate((vec, ve_temp), axis=0)
-	return vec
+class SUPPORT_LEVEL:
+	# basically an enum for read support levels
+	TOO_MANY_ALLELES = -2
+	INSUFFICIENT = -1
+	SUFFICIENT = 1
 
 
-def log_likelihood(reads, A, f, P):
-	L_k_log =0
+def check_read_support(Norm_reads, normal_alleles, p_equal) -> int:
+	if normal_alleles.size < 2:
+		return SUPPORT_LEVEL.SUFFICIENT
+	elif normal_alleles.size==2:
+		first_allele = normal_alleles[0]
+		second_allele = normal_alleles[1]
+		# reads supporting first allele
+		first_allele_reads = Norm_reads[1][np.nonzero(Norm_reads[0][:]==first_allele)]
+		second_allele_reads = Norm_reads[1][np.nonzero(Norm_reads[0][:]==second_allele)]
+		p = binom.cdf(min(first_allele_reads, second_allele_reads), first_allele_reads+second_allele_reads, 0.5)
+		if p < p_equal:
+			return SUPPORT_LEVEL.INSUFFICIENT
+		else:
+			return SUPPORT_LEVEL.SUFFICIENT
+	else: # Norm_allele.size>2:
+		return SUPPORT_LEVEL.TOO_MANY_ALLELES
+
+
+def log_likelihood(reads, alleles, fractions, probability_table):
+	L_k_log = 0
 	for k in range(int(reads.size/2)):
-		L_k_log+=reads[1][k]*np.log(sum(f*P[A, reads[0][k]]))
+		L_k_log+=reads[1][k]*np.log(sum(fractions*probability_table[alleles, reads[0][k]]))
+		"""
+		if math.isinf(L_k_log):
+			ic(fractions)
+			ic(alleles)
+			ic(reads[0][k])
+			ic(probability_table[alleles, reads[0][k]])
+			ic(sum(fractions*probability_table[alleles, reads[0][k]]))
+			sys.exit(1)
+		"""
 	return L_k_log
 
 
-def Check_Norm_valid(Norm_reads,Norm_allele,P ,p_equal):
-	if Norm_allele.size>2:
-		return -2
-	elif Norm_allele.size==2:
-		A1=Norm_allele[0]
-		A2=Norm_allele[1]
-		n1=Norm_reads[1][np.nonzero(Norm_reads[0][:]==A1)]
-		n2=Norm_reads[1][np.nonzero(Norm_reads[0][:]==A2)]
-		#print n1,n2,Norm_reads
-		p=binom.cdf(min(n1,n2),n1+n2,0.5)
-		#print p,p_equal
-		if p<p_equal:
-			return -1
-		else:
-			return 1
+def hist2vec(histogram):
+	vector = histogram[0, 0] * np.ones(histogram[1, 0])
+	for i in range(histogram.shape[1]-1):
+		ve_temp= histogram[0, i + 1] * np.ones(histogram[1, i + 1])
+		vector = np.concatenate((vector, ve_temp), axis=0)
+	return vector
+
+
+def check_mutation(normal_reads, normal_alleles, tumor_reads, tumor_allele, probability_table, LOR_ratio, p_equal, KS_threshold):
+	num_normal_alleles = normal_alleles.alleles.shape[0]
+	num_tumor_alleles = tumor_allele.alleles.shape[0]
+	threshold = -LOR_ratio
+	read_support_level = check_read_support(normal_reads, normal_alleles.alleles, p_equal)
+	if read_support_level != SUPPORT_LEVEL.SUFFICIENT:
+		return read_support_level
 	else:
-		return 1
+		L_Norm_Tum = log_likelihood(normal_reads, tumor_allele.alleles, tumor_allele.fractions, probability_table)
+		L_Norm_Norm =  log_likelihood(normal_reads, normal_alleles.alleles, normal_alleles.fractions, probability_table)
+		L_Tum_Tum = log_likelihood(tumor_reads, tumor_allele.alleles, tumor_allele.fractions, probability_table)
+		L_Tum_Norm = log_likelihood(tumor_reads, normal_alleles.alleles, normal_alleles.fractions, probability_table)
 
+		AIC_Norm_Tum = 2*num_tumor_alleles-2*L_Norm_Tum
+		AIC_Norm_Norm = 2*num_normal_alleles-2*L_Norm_Norm
+		AIC_Tum_Tum = 2*num_tumor_alleles-2*L_Tum_Tum
+		AIC_Tum_Norm = 2*num_normal_alleles-2*L_Tum_Norm
 
-def Check_Mutation(Norm_reads,Norm_allele,Norm_frac,Tum_reads,Tum_allele,Tum_frac,P,LOR_ratio,p_equal,KS_thresh):
-	sN=Norm_allele.shape
-	sN=sN[0]
-	sT=Tum_allele.shape
-	sT=sT[0]
-	#print "Allel num",Norm_allele,sN,Tum_allele,sT,
-	Thresh_hold=-LOR_ratio
-	p=p_equal
-	che=Check_Norm_valid(Norm_reads,Norm_allele,P,p)
-	if che<1:
-		return che
-	else:
-		#print ("Log data before sending",Norm_reads,Tum_allele,Tum_frac)
-		L_Norm_Tum=log_likelihood(Norm_reads,Tum_allele,Tum_frac,P)
-		L_Norm_Norm=log_likelihood(Norm_reads,Norm_allele,Norm_frac,P)
-		L_Tum_Tum=log_likelihood(Tum_reads,Tum_allele,Tum_frac,P)
-		L_Tum_Norm=log_likelihood(Tum_reads,Norm_allele,Norm_frac,P)
-
-		AIC_Norm_Tum =2*sT-2*L_Norm_Tum
-		AIC_Norm_Norm=2*sN-2*L_Norm_Norm
-		AIC_Tum_Tum  =2*sT-2*L_Tum_Tum
-		AIC_Tum_Norm =2*sN-2*L_Tum_Norm
-
-		if AIC_Tum_Tum - AIC_Tum_Norm < Thresh_hold and AIC_Norm_Norm - AIC_Norm_Tum < Thresh_hold:
-
-			#Checking the KS test
-			vec_N=hist2vec(Norm_reads)
-			vec_T=hist2vec(Tum_reads)
-			[ks_vla,ks_p]=stats.ks_2samp(vec_N,vec_T)
-			if (ks_p<KS_thresh):
+		if AIC_Tum_Tum - AIC_Tum_Norm < threshold and AIC_Norm_Norm - AIC_Norm_Tum < threshold:
+			# KS test
+			vec_N = hist2vec(normal_reads)
+			vec_T = hist2vec(tumor_reads)
+			_, ks_p = stats.ks_2samp(vec_N, vec_T)
+			if (ks_p < KS_threshold):
 				return 1
 			else:
 				return -3
 		else:
 			return 0
 
+
+def split_line(line: str) -> List[str]:
+	line = line[:-2].strip()
+	line_split = line.split((" -99999999 "))
+	return line_split
+
+def strip_brackets(text: str):
+	# returns given text with brackets stripped off
+	return (text.replace("[", "")).replace("]", "")
+
+def get_reads(split_line: List[str])-> np.array:
+	reads_list = split_line[0].split(" ")
+	reads = np.empty(len(reads_list) - 1, dtype=int)
+	for i in range(1, len(reads_list)):
+		reads[i - 1] = int(reads_list[i])
+	reads_mat = np.array([reads[0:reads.size:2], reads[1:reads.size:2]])
+	repeat_filter = np.nonzero(reads_mat[0, :] < 40)
+	reads_mat = reads_mat[:, repeat_filter[0]]
+	return reads_mat
+
+
+def get_alleles(split_line: List[str]) -> AlleleSet:
+	alleles = np.fromstring(strip_brackets(split_line[2]), dtype=int, sep=' ')
+	allelic_fractions = np.fromstring(split_line[3], dtype=float, sep=' ')
+	if alleles.size>1:
+		allele_sorted = alleles.argsort()
+		allelic_fractions=allelic_fractions[allele_sorted]
+		alleles = alleles[allele_sorted]
+	return AlleleSet(alleles=alleles, fractions=allelic_fractions)
+
+def write_output(output_lines, output_file: str):
+	with open(output_file, 'w') as results:
+		results.write("\n".join(output_lines))
+	return 1
 
 def main(cmd_args):
 	probability_table = np.loadtxt(cmd_args[3], delimiter=',')
@@ -83,66 +132,26 @@ def main(cmd_args):
 	p_equal = float(cmd_args[5])
 	KS_thresh = float(cmd_args[6])
 
-	count, count_mut, c1 = 0, 0, 0
-	for Norm_t in normal_file:
-		Norm_t = Norm_t[0:len(Norm_t)-2]
-		Norm_list=Norm_t.split(" -99999999 ")
-		Norm_list[3].strip('\n')
-		Tum_t = tumor_file.readline()
-		Tum_list = Tum_t.split(" -99999999 ")
-		chr_l = Norm_t.split("ZZZ")
-		locus = chr_l[0]
-
-		Norm_reads_list = Norm_list[0].split(" ")
-		Norm_reads = np.empty(len(Norm_reads_list)-1, dtype=int)
-		for i in range(1,len(Norm_reads_list)):
-			Norm_reads[i-1]=int(Norm_reads_list[i])
-		Norm_reads_mat = np.array([Norm_reads[0:Norm_reads.size:2],Norm_reads[1:Norm_reads.size:2]])
-		fi=np.nonzero(Norm_reads_mat[0,:]<40)
-		Norm_reads_mat=Norm_reads_mat[:,fi[0]]
-		c1+=1
-
-		Norm_allele = np.fromstring(Norm_list[2], dtype=int, sep=' ')
-
-		Norm_frac= np.fromstring(Norm_list[3], dtype=float, sep=' ')
-		if Norm_allele.size>1:
-			Norm_allele_arg=Norm_allele.argsort()
-			Norm_frac=Norm_frac[Norm_allele_arg]
-			Norm_allele=Norm_allele[Norm_allele_arg]
-			#print "Nprmal",Norm_allele,Norm_frac
-
-		#print Tum_list[0]
-		Tum_reads_list = Tum_list[0].split(" ")
-		Tum_reads = np.empty(len(Tum_reads_list)-1, dtype=int)
-		#print Tum_reads_list
-		for i in range(1,len(Tum_reads_list)):
-			Tum_reads[i-1]=int(Tum_reads_list[i])
-		Tum_reads_mat=np.array([Tum_reads[0:Tum_reads.size:2],Tum_reads[1:Tum_reads.size:2]])
-		fi=np.nonzero(Tum_reads_mat[0,:]<40)
-		Tum_reads_mat=Tum_reads_mat[:,fi[0]]
-
-
-		Tum_allele = np.fromstring(Tum_list[2], dtype=int, sep=' ')
-		#print Tum_allele,"size is",Tum_allele.size
-		Tum_frac= np.fromstring(Tum_list[3], dtype=float, sep=' ')
-		#print "Before if",Norm_allele.shape," ", Tum_allele.shape
-		if Tum_allele.size>1:
-			Tum_allele_arg=Tum_allele.argsort()
-			Tum_frac=Tum_frac[Tum_allele_arg]
-			Tum_allele=Tum_allele[Tum_allele_arg]
-
-
-		if np.array_equal(Norm_allele,Tum_allele):
-			c=1
-		else:
-			count+=1
-			q=Check_Mutation(Norm_reads_mat, Norm_allele, Norm_frac, Tum_reads_mat, Tum_allele, Tum_frac, probability_table, LOR_ratio, p_equal, KS_thresh)
-			if q==1:
-				count_mut+=1
-			print (q,locus,Norm_reads,Norm_allele,Norm_frac,Tum_reads,Tum_allele,Tum_frac,"@")
-
-	print ("All",count,"Mut",count_mut)
-
+	output_lines = []
+	total_allelic_differentiated, mutated_loci = 0, 0
+	normal_file_lines = normal_file.readlines()
+	for i in range(len(normal_file_lines)):
+		norm_line = normal_file_lines[i]
+		locus = norm_line.split("ZZZ")[0]
+		Norm_list = split_line(norm_line)
+		Tum_list = split_line(tumor_file.readline())
+		Norm_reads_mat = get_reads(Norm_list)
+		normal_alleles = get_alleles(Norm_list)
+		tumor_reads_mat = get_reads(Tum_list)
+		tumor_alleles = get_alleles(Tum_list)
+		if not np.array_equal(normal_alleles.alleles, tumor_alleles.alleles):
+			total_allelic_differentiated+=1
+			decision = check_mutation(Norm_reads_mat, normal_alleles, tumor_reads_mat, tumor_alleles, probability_table, LOR_ratio, p_equal, KS_thresh)
+			if decision==1:
+				mutated_loci+=1
+			output_lines.append(f"{decision} {locus} {Norm_reads_mat} {normal_alleles.alleles} {normal_alleles.fractions} {tumor_reads_mat} {tumor_alleles.alleles} {tumor_alleles.fractions} @")
+	output_lines.append(f"Total Loci with Differing Called Alleles: {total_allelic_differentiated}\n Total Mutated Loci: {mutated_loci}")
+	write_output(output_lines, cmd_args(7))
 
 if __name__== '__main__':
 	main(sys.argv)
